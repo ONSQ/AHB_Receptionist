@@ -1,0 +1,66 @@
+vehicles:
+  - model: Camry
+    make: Toyota
+    year: null
+    type: hybrid
+    service_time_hours: 4.5
+
+  - model: Prius
+    make: Toyota
+    year: null
+    type: hybrid
+    service_time_hours: 5.5
+
+  - model: RAV4
+    make: Toyota
+    year: null
+    type: hybrid
+    service_time_hours: 4.5
+  
+  - model: Accord
+    make: Honda
+    year: null
+    type: hybrid
+    service_time_hours: 5.5
+
+  - model: Civic
+    make: Honda
+    year: null
+    type: hybrid
+    service_time_hours: 4.5
+
+  - model: RAV4 Prime
+    make: Toyota
+    year: null
+    type: plug-in hybrid
+    service_time_hours: 5.5
+
+  - model: Outlander
+    make: Mitsubishi
+    year: null
+    type: plug-in hybrid
+    service_time_hours: 6.5
+
+  - model: Niro
+    make: Kia
+    year: null
+    type: plug-in hybrid
+    service_time_hours: 4.5
+
+  - model: Tuscon
+    make: Hyundai
+    year: null
+    type: plug-in hybrid
+    service_time_hours: 5
+
+  - model: Sorento
+    make: Kia
+    year: null
+    type: plug-in hybrid
+    service_time_hours: 5.5
+
+  - model: Wrangler 4xe
+    make: Jeep
+    year: null
+    type: plug-in hybrid
+    service_time_hours: 5.5
