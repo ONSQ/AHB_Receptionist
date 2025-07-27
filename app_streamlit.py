@@ -104,7 +104,8 @@ def process_with_llm(history):
 
 # --- STREAMLIT APP ---
 st.set_page_config(page_title="Austin Hybrid Battery Receptionist", page_icon="🔋")
-st.title("🔋 Austin Hybrid Battery AI Receptionist 🔋")
+st.title("🔋Austin Hybrid Battery🔋") 
+st.title("AI Receptionist Chat")
 st.write("Ask about battery service for your vehicle, or schedule an appointment.")
 
 if "history" not in st.session_state:
