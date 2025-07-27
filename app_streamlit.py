@@ -110,31 +110,40 @@ st.write("Ask about battery service for your vehicle, or schedule an appointment
 
 if "history" not in st.session_state:
     st.session_state.history = []
+if "booking" not in st.session_state:
+    st.session_state.booking = False
 
 for msg in st.session_state.history:
     with st.chat_message("user" if msg["role"] == "user" else "assistant"):
         st.markdown(msg["content"])
 
+# Chat input handling
 if prompt := st.chat_input("Type your message..."):
     st.session_state.history.append({"role": "user", "content": prompt})
 
-    # If user asks for appointment, trigger calendar widget
     if "appointment" in prompt.lower() or "schedule" in prompt.lower():
-        st.chat_message("assistant").markdown("Please select a date and time for your appointment:")
-        
-        # Show date & time picker inline
-        selected_date = st.date_input("Select a date", min_value=datetime.now().date())
-        selected_time = st.time_input("Select a time")
-        
-        if st.button("📅 Confirm Appointment"):
-            start_dt = datetime.combine(selected_date, selected_time)
-            end_dt = start_dt + timedelta(hours=1)
-            event_link = create_calendar_event(start_dt, end_dt)
-            confirmation = f"✅ Appointment booked for {start_dt.strftime('%I:%M %p on %B %d, %Y')}.\n[View on Google Calendar]({event_link})"
-            st.session_state.history.append({"role": "assistant", "content": confirmation})
-            st.experimental_rerun()
-
+        st.session_state.booking = True  # Activate booking flow
+        st.session_state.history.append({
+            "role": "assistant", 
+            "content": "Please select a date and time for your appointment:"
+        })
     else:
         response = process_with_llm(st.session_state.history)
         st.session_state.history.append({"role": "assistant", "content": response})
+
+# Show booking widget if in booking flow
+if st.session_state.booking:
+    selected_date = st.date_input("📅 Select a date", min_value=datetime.now().date(), key="date_pick")
+    selected_time = st.time_input("⏰ Select a time", key="time_pick")
+
+    if st.button("✅ Confirm Appointment"):
+        start_dt = datetime.combine(selected_date, selected_time)
+        end_dt = start_dt + timedelta(hours=1)
+        event_link = create_calendar_event(start_dt, end_dt)
+        confirmation = (
+            f"✅ Appointment booked for {start_dt.strftime('%I:%M %p on %B %d, %Y')}.\n"
+            f"[View on Google Calendar]({event_link})"
+        )
+        st.session_state.history.append({"role": "assistant", "content": confirmation})
+        st.session_state.booking = False  # Exit booking flow
         st.rerun()
