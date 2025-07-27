@@ -1,20 +1,36 @@
 import streamlit as st
-import yaml
-import re
+import yaml, re, json
 from difflib import get_close_matches
 import openai
 from datetime import datetime, timedelta
-import dateparser
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
-# Set your OpenAI key here or use st.secrets
+# --- API keys & secrets ---
 openai.api_key = st.secrets.get("OPENAI_API_KEY")
-# For Google simple API key:
 google_api_key = st.secrets["GOOGLE_API_KEY"]
 # For Google service account JSON:
 import json
 google_creds = json.loads(st.secrets["GOOGLE_SERVICE_ACCOUNT_JSON"])
 
-# Load knowledge base
+
+# --- Google Calendar setup ---
+SCOPES = ['https://www.googleapis.com/auth/calendar']
+credentials = service_account.Credentials.from_service_account_info(
+    google_creds, scopes=SCOPES
+)
+calendar_service = build('calendar', 'v3', credentials=credentials)
+
+def create_calendar_event(start_datetime, end_datetime):
+    event = {
+        'summary': 'Hybrid Battery Appointment',
+        'start': {'dateTime': start_datetime.isoformat(), 'timeZone': 'America/Chicago'},
+        'end': {'dateTime': end_datetime.isoformat(), 'timeZone': 'America/Chicago'},
+    }
+    event = calendar_service.events().insert(calendarId='primary', body=event).execute()
+    return event.get('htmlLink')
+
+# --- Knowledge base ---
 @st.cache_data
 def load_knowledge_base(path="knowledge_base.txt"):
     with open(path, "r", encoding="utf-8") as f:
@@ -62,10 +78,7 @@ def process_with_llm(history):
                 "Kindly ask for the year and model."
             )
             messages = [{"role": "system", "content": fallback_prompt}] + history
-            response = openai.chat.completions.create(
-                model="gpt-4o",
-                messages=messages
-            )
+            response = openai.chat.completions.create(model="gpt-4o", messages=messages)
             return response.choices[0].message.content
         elif isinstance(result, dict) and "ambiguous" in result:
             options = result["ambiguous"]
@@ -89,36 +102,38 @@ def process_with_llm(history):
     except Exception as e:
         return f"Error: {str(e)}"
 
-def handle_appointment(message):
-    parsed_date = dateparser.parse(message, settings={'PREFER_DATES_FROM': 'future'})
-    if not parsed_date:
-        return "Please specify a date and time for the appointment."
-    start_time = parsed_date.strftime('%I:%M %p on %B %d, %Y')
-    return f"Appointment booked for {start_time}."
-
-# --- STREAMLIT APP UI ---
-st.set_page_config(page_title="FrontDesk AI", page_icon="🤖")
-st.title("Chat with FrontDesk AI")
+# --- STREAMLIT APP ---
+st.set_page_config(page_title="Austin Hybrid Battery Receptionist", page_icon="🔋")
+st.title("🔋 Austin Hybrid Battery AI Receptionist 🔋")
 st.write("Ask about battery service for your vehicle, or schedule an appointment.")
 
-# Chat history in session
 if "history" not in st.session_state:
     st.session_state.history = []
 
 for msg in st.session_state.history:
-    role = "🧑 You" if msg["role"] == "user" else "🤖 Assistant"
-    with st.chat_message(msg["role"]):
+    with st.chat_message("user" if msg["role"] == "user" else "assistant"):
         st.markdown(msg["content"])
 
-# User input
 if prompt := st.chat_input("Type your message..."):
     st.session_state.history.append({"role": "user", "content": prompt})
 
+    # If user asks for appointment, trigger calendar widget
     if "appointment" in prompt.lower() or "schedule" in prompt.lower():
-        response = handle_appointment(prompt)
+        st.chat_message("assistant").markdown("Please select a date and time for your appointment:")
+        
+        # Show date & time picker inline
+        selected_date = st.date_input("Select a date", min_value=datetime.now().date())
+        selected_time = st.time_input("Select a time")
+        
+        if st.button("📅 Confirm Appointment"):
+            start_dt = datetime.combine(selected_date, selected_time)
+            end_dt = start_dt + timedelta(hours=1)
+            event_link = create_calendar_event(start_dt, end_dt)
+            confirmation = f"✅ Appointment booked for {start_dt.strftime('%I:%M %p on %B %d, %Y')}.\n[View on Google Calendar]({event_link})"
+            st.session_state.history.append({"role": "assistant", "content": confirmation})
+            st.experimental_rerun()
+
     else:
         response = process_with_llm(st.session_state.history)
-
-    st.session_state.history.append({"role": "assistant", "content": response})
-    st.rerun()  # to refresh chat after message
-
+        st.session_state.history.append({"role": "assistant", "content": response})
+        st.rerun()
